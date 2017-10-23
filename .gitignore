@@ -14,3 +14,4 @@ vs/
 # Secrets
 secret.json
 sheets.json
+test.js
