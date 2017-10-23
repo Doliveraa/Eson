@@ -1,8 +1,6 @@
 //const QUERY = require('./query');
 const SCHEDULE = require("node-schedule");
 const MONGOOSE = require('mongoose');
-const USER = require('./user.js');
-const XLSX = require("xlsx");
 const GoogleSpreadsheet = require("google-spreadsheet");
 const Credentials = require("./secret.json");
 
@@ -11,10 +9,7 @@ var dbPath = 'mongodb://localhost/userDB';
 
 var createSpreadsheet = function() {
   var gDoc = new GoogleSpreadsheet('ADD LONG ID FROM SHEETS URL');
-  var gSheet;
-
-
-
+  var gSheet = "";
 }
 
 var query = function () {
@@ -40,8 +35,6 @@ var connectDB = function () {
         console.log("success")
     });
 }
-
-
 
 var findAll = function () {
 
