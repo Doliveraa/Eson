@@ -1,13 +1,20 @@
 //const QUERY = require('./query');
 const SCHEDULE = require("node-schedule");
 const MONGOOSE = require('mongoose');
+const MOMENT = require("moment");
 const GoogleSpreadsheet = require("google-spreadsheet");
+const ASYNC = require('async');
+
 const GOOGLE = require("./secret.json");
 const SHEETS = require("./sheets.json");
-const dbPath = 'mongodb://localhost/userDB';
-const async = require('async');
 const USERS = require('./users.js');
+const ASSIGNMENTS = require('./assignments.js');
+
 MONGOOSE.model("User",USERS);
+MONGOOSE.model("Assignment",ASSIGNMENTS);
+const dbPath = 'mongodb://localhost/userDB';
+const TODAY = MOMENT().startOf('day').toISOString();
+const EOD= MOMENT().endOf('day').toISOString();
 
 // spreadsheet key is the long id in the sheets URL
 var doc = new GoogleSpreadsheet(SHEETS.sheet_id);
@@ -15,14 +22,18 @@ var sheet;
 var db;
 var USER;
 /**
- * Connects to database using Moongoose.
+ * Connects to database using Moongoose. note: since we are connecting and disconnecting to mongoDB
+ * many times and only when the project is running there is an instantiation of a new connection and
+ * scheemas each time in order to reduce connections.  
  * @param  {Function} callback [description]
  */
 const connectDB = function connectDB(callback) {
   db = MONGOOSE.createConnection(dbPath, { useMongoClient: true },function(err){callback()});
 	USER = db.model('User',USERS);
+  ASSIGNMENT = db.model('Assignment',ASSIGNMENTS);
 	db.once('open', function() {
-   	console.log("DB connected");
+   	console.log("ConnectDB: Connected");
+
        callback();
   });
 
@@ -34,8 +45,12 @@ const connectDB = function connectDB(callback) {
  */
 const setAuth = function setAuth(callback) {
   doc.useServiceAccountAuth(GOOGLE, callback);
-  console.log("google connect");
+  console.log("SetAtuh: Gooogle Connected");
 };
+
+const createOne = function createOne(callback){
+  ASSIGNMENT.create({title: "Hello", dueDate: Date.now, completed: false, userId: "59c9c07962b78aed5257fd06", dateCreated: Date.now});
+}
 
 /**
  * Gets Information about the google Worksheet.
@@ -43,9 +58,8 @@ const setAuth = function setAuth(callback) {
  */
 const getSheets = function getInfoAndWorksheets(callback) {
   doc.getInfo(function (err, info) {
-      console.log('Loaded doc: ' + info.title + ' by ' + info.author.email);
       sheet = info.worksheets[0];
-      console.log('sheet 1: ' + sheet.title + ' ' + sheet.rowCount + 'x' + sheet.colCount);
+      console.log("Get G-Worksheets")
       callback();
   });
 };
@@ -71,34 +85,47 @@ const getRows = function getRows(callback) {
  * @param  {Function} callback [description]
  * @return {[type]}            [description]
  */
-function appendRows( userCount, callback)
+function appendRows( assignmentsCreated, assignmentsCompleted, userCount, callback)
 {
-		console.log("inside append rows,users count", resuluts[0]);
+		console.log("AppendRows");
 		var date = new Date().toISOString().substring(0,10);
 		sheet.addRow({
 			date: date,
-			tasks_created_today: "place holder1",
-			tasks_completed_today: "place holder 2",
+			tasks_created_today: assignmentsCreated,
+			tasks_completed_today: assignmentsCompleted,
 			number_of_users: userCount
-		}, function(err){
-			if(err)
-				console.log("error append rows callback fxn", err);
-				throw err;
+		}, function(err, row){
 			callback();
 		});
 };
 
 
 
+
+
+const tasksCreatedToday = function tasksCreatedToday(callback){
+  ASSIGNMENT.count({dateCreated: {"$gte": TODAY, "$lt": EOD} }, function (err, assignmentsCreated) {
+    console.log("TasksCreatedToday: DB # of task created today:"+assignmentsCreated)
+    callback(null, assignmentsCreated);
+  })
+}
+
+const tasksCompletedToday = function tasksCompletedToday(assignmentsCreated, callback) {
+  ASSIGNMENT.count({$and: [ {dateCreated: {"$gte": TODAY, "$lt": EOD} }, {completed: true} ]}, function (err, assignmentsCompleted) {
+    console.log("TasksCompletedToday: DB # of task completed today:"+assignmentsCompleted)
+		callback(null, assignmentsCreated, assignmentsCompleted);
+  })
+}
+
 /**
  * find all users.
  * @param  {Function} callback [description]
  * @return {[type]}            [description]
  */
-const findAll = function findall(callback) {
+const findAllUsers = function findAllUsers(assignmentsCreated, assignmentsCompleted, callback) {
   USER.count({}, function(err, userCount) {
-		console.log("Number of users:",userCount);
-		callback(null, userCount);
+		console.log("FindAll: DB # of users:",userCount);
+		callback(null, assignmentsCreated, assignmentsCompleted, userCount);
 	})
 }
 
@@ -106,27 +133,27 @@ const findAll = function findall(callback) {
  * A asynchronous series.
  */
 var series = function() {
-	console.log("		Runnning  ")
-  async.series([
+  console.log("     Running");
+	ASYNC.waterfall([
 		connectDB,
 		setAuth,
 		getSheets,
-		findAll],
+    tasksCreatedToday,
+    tasksCompletedToday,
+    findAllUsers,
+    appendRows
+    ],
   function (err, results) {
     if (err) {
       console.log('Error: ' + err);
     }
 
-		//in this series finall is index 3 and the callback with
-		//the usercount adds usercount to index 3s result
-		console.log(results[3]);
-
 		MONGOOSE.disconnect(function(){
-      console.log("disconnected");
+      console.log("DB disconnect");
     });
 
   });
 };
 
-// This schedule runs every {currently 1 min}, it calls the series function.
+//This schedule runs every {currently 1 min}, it calls the series function.
 var sched = SCHEDULE.scheduleJob('*/1 * * * *',series);

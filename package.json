@@ -9,6 +9,7 @@
   "dependencies": {
     "async": "^2.5.0",
     "google-spreadsheet": "^2.0.4",
+    "moment": "^2.19.1",
     "mongoose": "^4.11.13",
     "node-schedule": "^1.2.4"
   },
