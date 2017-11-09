@@ -4,6 +4,7 @@ const MONGOOSE = require('mongoose');
 const MOMENT = require("moment");
 const GoogleSpreadsheet = require("google-spreadsheet");
 const ASYNC = require('async');
+const DB_CONFIG = require("./database");
 
 const GOOGLE = require("./secret.json");
 const SHEETS = require("./sheets.json");
@@ -29,7 +30,13 @@ var ASSIGNMENT;
  * @param  {Function} callback [description]
  */
 const connectDB = function connectDB(callback) {
-  db = MONGOOSE.createConnection(dbPath, { useMongoClient: true },function(err){callback()});
+  db = MONGOOSE.createConnection(dbPath,
+    {"auth": {"authSource": DB_CONFIG.authSource},
+     "user": DB_CONFIG.user,
+     "pass": DB_CONFIG.password,
+      useMongoClient: true },
+    function(err){callback()});
+
   USER = db.model('User',USERS);
   ASSIGNMENT = db.model('Assignment',ASSIGNMENTS);
 	db.once('open', function() {
@@ -155,7 +162,6 @@ var series = function() {
 
   });
 };
-
 
 //This schedule runs every 23rd hour(11pm), it calls the series function.
 var sched = SCHEDULE.scheduleJob('58 23 * * *',series);
