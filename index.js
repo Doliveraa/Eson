@@ -21,15 +21,16 @@ var doc = new GoogleSpreadsheet(SHEETS.sheet_id);
 var sheet;
 var db;
 var USER;
+var ASSIGNMENT;
 /**
  * Connects to database using Moongoose. note: since we are connecting and disconnecting to mongoDB
  * many times and only when the project is running there is an instantiation of a new connection and
- * scheemas each time in order to reduce connections.  
+ * scheemas each time in order to reduce connections.
  * @param  {Function} callback [description]
  */
 const connectDB = function connectDB(callback) {
   db = MONGOOSE.createConnection(dbPath, { useMongoClient: true },function(err){callback()});
-	USER = db.model('User',USERS);
+  USER = db.model('User',USERS);
   ASSIGNMENT = db.model('Assignment',ASSIGNMENTS);
 	db.once('open', function() {
    	console.log("ConnectDB: Connected");
@@ -48,9 +49,9 @@ const setAuth = function setAuth(callback) {
   console.log("SetAtuh: Gooogle Connected");
 };
 
-const createOne = function createOne(callback){
-  ASSIGNMENT.create({title: "Hello", dueDate: Date.now, completed: false, userId: "59c9c07962b78aed5257fd06", dateCreated: Date.now});
-}
+// const createOne = function createOne(callback){
+//   ASSIGNMENT.create({title: "Hello", dueDate: Date.now, completed: false, userId: "59c9c07962b78aed5257fd06", dateCreated: Date.now});
+// }
 
 /**
  * Gets Information about the google Worksheet.
@@ -64,21 +65,21 @@ const getSheets = function getInfoAndWorksheets(callback) {
   });
 };
 
-/**
- * Get rows using a google sheet.
- * @param  {Function} callback [description]
- */
-const getRows = function getRows(callback) {
-  sheet.getRows({
-    offset: 1
-  }, function(err, rows){
-    var length =rows.length-1;
-    var date = new Date();
-    rows[length].date = date.toISOString().substring(0,10);
-    rows[length].save();
-    callback();
-  });
-};
+// /**
+//  * Get rows using a google sheet.
+//  * @param  {Function} callback [description]
+//  */
+// const getRows = function getRows(callback) {
+//   sheet.getRows({
+//     offset: 1
+//   }, function(err, rows){
+//     var length =rows.length-1;
+//     var date = new Date();
+//     rows[length].date = date.toISOString().substring(0,10);
+//     rows[length].save();
+//     callback();
+//   });
+// };
 
 /**
  * Append a row to a google sheet.
@@ -88,9 +89,9 @@ const getRows = function getRows(callback) {
 function appendRows( assignmentsCreated, assignmentsCompleted, userCount, callback)
 {
 		console.log("AppendRows");
-		var date = new Date().toISOString().substring(0,10);
+		var date = new Date();
 		sheet.addRow({
-			date: date,
+			date: date.toLocaleDateString() + " "+date.toLocaleTimeString(),
 			tasks_created_today: assignmentsCreated,
 			tasks_completed_today: assignmentsCompleted,
 			number_of_users: userCount
@@ -155,5 +156,6 @@ var series = function() {
   });
 };
 
-//This schedule runs every {currently 1 min}, it calls the series function.
-var sched = SCHEDULE.scheduleJob('*/1 * * * *',series);
+
+//This schedule runs every 23rd hour(11pm), it calls the series function.
+var sched = SCHEDULE.scheduleJob('58 23 * * *',series);
