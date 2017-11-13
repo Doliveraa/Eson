@@ -14,8 +14,8 @@ const ASSIGNMENTS = require('./assignments.js');
 MONGOOSE.model("User",USERS);
 MONGOOSE.model("Assignment",ASSIGNMENTS);
 const dbPath = 'mongodb://localhost/userDB';
-const TODAY = MOMENT().startOf('day').toISOString();
-const EOD= MOMENT().endOf('day').toISOString();
+var TODAY;
+var EOD;
 
 // spreadsheet key is the long id in the sheets URL
 var doc = new GoogleSpreadsheet(SHEETS.sheet_id);
@@ -45,6 +45,12 @@ const connectDB = function connectDB(callback) {
        callback();
   });
 
+};
+
+var setup = function setup(callback) {
+ TODAY = MOMENT().startOf('day').toISOString();
+ EOD= MOMENT().endOf('day').toISOString();
+ callback();
 };
 
 /**
@@ -143,6 +149,7 @@ const findAllUsers = function findAllUsers(assignmentsCreated, assignmentsComple
 var series = function() {
   console.log("     Running");
 	ASYNC.waterfall([
+        setup,
 		connectDB,
 		setAuth,
 		getSheets,
